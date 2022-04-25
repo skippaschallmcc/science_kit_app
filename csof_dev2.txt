@@ -1,0 +1,104 @@
+// 20220422_1725_csof_dev2
+
+function getOrderFormsTemplateIds() {
+  const orderFormsTemplateFolderId = "1KAjAYuqOQY6d3Np3Vh_sYLlB_6Wcs2nB";
+  const files = DriveApp.getFolderById(orderFormsTemplateFolderId).getFiles();
+  let orderFormTemplatesIdArr = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    orderFormTemplatesIdArr.push(file.getId());
+  }
+  Logger.log("orderFormTemplatesIdArr: " + orderFormTemplatesIdArr);
+  return(orderFormTemplatesIdArr);
+}
+
+function getFileIdForFileName(building) {
+  //Get the file id of the building order form that was just created
+  var FileIterator = DriveApp.getFilesByName(building);
+  var fileId;
+  while (FileIterator.hasNext())
+  {
+    var file = FileIterator.next();
+    if (file.getName() == building)
+    {
+      var Sheet = SpreadsheetApp.open(file);
+      fileId = file.getId();
+      break;
+    }
+  } //end while
+  return fileId;
+}
+
+function copyTemplateToAllBuildings() {
+
+//*****************************************************************************************************
+
+// 1st Grade
+  const templateId = "10G1kG49d5wqssmJ9ipKb6vh4Bcao1kP0rWF9JS4wGGU";
+  const folderId = "1MLrxPH3wr7Rra7fCXjFqEGlWhGYrPPYC";
+
+// 2nd Grade - new folder structure and names
+  // const templateId = "1hzcWcN50gkYx8KDeo22I8M0HlvnOSg2vPW1pz2ORD4g";
+  // const folderId = "184MQIJb-7w9ydDwopwMg1j3hwsq6xkc4";
+
+// 3rd Grade
+  // const templateId = "1unzouOvVFBYflya16FYxzGL3hSmTkST3lnU_wxZRUYM";
+  // const folderId = "1b-YLmImPv9rnEI8bqrX3agU5YIKacoqg";
+
+// 4th Grade
+  // const templateId = "164toO1DVabvwBbB9HtgbnxNRkNx1wzKSWBNgdHm8OiA";
+  // const folderId = "11pw38RY7yJv0fdjstWPJXQA7emQQsW-6";
+
+// 5th Grade
+  // const templateId = "1u5I_u_O_OKELY5-Qcx36oN8OdN30kz5Ku5SlMprMBHM";
+  // const folderId = "1AxSmufykeaH6dXRKdjSg65-epLMdvFlv";
+
+// Kindergarten
+  // const templateId = "1ddEaWP8B9WCuG-hU8mnE3QcF95ZL7RXrkz_vTaBwhwE";
+  // const folderId = "1HJYOQ2jTizBKtA3QbNAXKSEK1qTUwAom";
+
+//*****************************************************************************************************
+
+  const ss = SpreadsheetApp.openById(templateId);
+
+  for (let i = 1; i <= 5; i++) {
+    let building = "Unknown building";
+    switch (i) {
+      case 1:
+        building = "Abbott";
+        break;
+      case 2:
+        building = "Ackerman";
+        break;
+      case 3:
+        building = "Aldrich";
+        break;
+      case 4:
+        building = "Black Elk";
+        break;
+      case 5:
+        building = "Bryan";
+        break;        
+      default:
+        Logger.log("Error:  switch fall thru - copyTemplateToAllBuildings");
+        break;
+      //TODO throw error
+    }  //switch end
+    Logger.log("building: " + building);
+
+    // Copy template to create a new spreadsheet (will be in MyDrive)
+    ss.copy(building);
+
+    // Put building name into second sheet of newly created spreadsheet
+    const fileId = getFileIdForFileName(building);
+    const ssNew = SpreadsheetApp.openById(fileId);
+    const activeSheet = ssNew.setActiveSheet(ssNew.getSheets()[1]);
+    const targetCell = activeSheet.setActiveSelection("C2");
+    targetCell.setValue(building);
+
+    // Move this newly created spreadsheet to the grade-level folder
+    const file = DriveApp.getFileById(fileId);
+    DriveApp.getFolderById(folderId).addFile(file);
+
+  }
+}
