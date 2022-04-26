@@ -1,15 +1,7 @@
-// 20220424_0916_hc_dev1
+// 20220426_1830_hc_dev1
 
-This change will be the second commit
-
-// ################################## //
-// ##### manually set these Ids ##### //
-// ################################## //
-// folder: Amplify Science Teacher Order Forms
-const orderFormsTemplateFolderId = "1KAjAYuqOQY6d3Np3Vh_sYLlB_6Wcs2nB";
-// folder: Grade-level Order Totals
-const orderTotalsSheetsFolderId = "1YY1Yx3-3bdZBTIqJCb1ox8no4Tvl1aw0";
-
+const orderFormsTemplateFolderId = DriveApp.getFoldersByName("Grade-level Order Form templates").next().getId();
+const orderTotalsSheetsFolderId = DriveApp.getFoldersByName("Grade-level Order Totals").next().getId();
 
 function run_health_checks() {
   orderFormDupItemNum();
