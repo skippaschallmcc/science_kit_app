@@ -1,0 +1,240 @@
+// 20220509_1545 health_checks
+
+function run_health_checks() {
+  checkForRequiredFoldersAndFiles();
+  orderFormDupItemNum();
+  itemsTeacherOrderFormVersusTotals();
+}
+
+function checkForRequiredFoldersAndFiles() {
+  Logger.log("*** Checking if required folders and files exist")
+
+  const requiredFolders = [
+    "Amplify Science Admin",
+    "Grade-level Order Sheet templates",
+    "Grade-level Order Totals",
+    "Amplify Science Teacher Order Sheets",
+    "1st Grade",
+    "2nd Grade",
+    "3rd Grade",
+    "4th Grade",
+    "5th Grade",
+    "Kindergarten"
+  ]
+  requiredFolders.forEach((val) => {
+    checkForRequiredFolder(val);
+  })
+
+  const requiredFiles = [
+    "1st Grade Kits Order Sheets",
+    "2nd Grade Kits Order Sheets",
+    "3rd Grade Kits Order Sheets",
+    "4th Grade Kits Order Sheets",
+    "5th Grade Kits Order Sheets",
+    "Kindergarten Kits Order Sheets",
+    "1st Grade Order Totals",
+    "2nd Grade Order Totals",
+    "3rd Grade Order Totals",
+    "4th Grade Order Totals",
+    "5th Grade Order Totals",
+    "Kindergarten Order Totals"
+  ]
+  requiredFiles.forEach((val) => {
+    checkForRequiredFile(val);
+  })
+}
+
+function checkForRequiredFolder(folderName) {
+  try {
+    const folderId = DriveApp.getFoldersByName(folderName).next().getId();
+  } catch (e) {
+    Logger.log(`FATAL ERROR: ${folderName} folder not found`);
+    // Logger.log("FATAL ERROR: Amplify Science Admin folder not found");
+    throw new Error("exiting program");
+  }
+}
+
+function checkForRequiredFile(fileName) {
+  try {
+    const fileId = DriveApp.getFilesByName(fileName).next().getId();
+  } catch (e) {
+    Logger.log(`FATAL ERROR: ${fileName} file not found`);
+    throw new Error("exiting program");
+  }
+}
+
+function createOrderFormsIdArr(orderFormsFolderId) {
+  const files = orderFormsFolderId.getFiles();
+  let orderFormsIdArr = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    orderFormsIdArr.push(file.getId());
+  }
+
+  let orderFormsNameArr = [];
+
+  orderFormsIdArr.forEach((val) => {
+    let activeFile = DriveApp.getFileById(val);
+    orderFormsNameArr.push(activeFile.getName());
+  })
+
+  let orderFormsSortedByNameIdArr = [];
+
+  orderFormsNameArr.sort().reverse().forEach((val) => {
+    orderFormsSortedByNameIdArr.push(getFileIdForFileName(val));
+  })
+  return (orderFormsSortedByNameIdArr);
+}
+
+function getFileIdForFileName(building) {
+  var FileIterator = DriveApp.getFilesByName(building);
+  var fileId;
+  while (FileIterator.hasNext()) {
+    var file = FileIterator.next();
+    if (file.getName() == building) {
+      var Sheet = SpreadsheetApp.open(file);
+      fileId = file.getId();
+      break;
+    }
+  }
+  return fileId;
+}
+
+function createTotalsSheetIdArr(totalsSheetsFolderId) {
+  const files = totalsSheetsFolderId.getFiles();
+  let totalsSheetIdArr = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    totalsSheetIdArr.push(file.getId());
+  }
+
+  let totalsSheetNameArr = [];
+  totalsSheetIdArr.forEach((val) => {
+    let activeFile = DriveApp.getFileById(val);
+    totalsSheetNameArr.push(activeFile.getName());
+  })
+
+  let totalsSheetSortedByNameIdArr = [];
+  totalsSheetNameArr.sort().reverse().forEach((val) => {
+    totalsSheetSortedByNameIdArr.push(getFileIdForFileName(val));
+  })
+  return (totalsSheetSortedByNameIdArr);
+}
+
+function orderFormDupItemNum() {
+
+  Logger.log("*** Checking teacher order sheet templates for duplicate item numbers within a kit")
+
+
+  const orderFormsTemplateFolderId = DriveApp.getFoldersByName("Grade-level Order Sheet templates").next().getId();
+
+  orderFormGradeLevelTemplateArr = createOrderFormsIdArr(DriveApp.getFolderById(orderFormsTemplateFolderId));
+
+  let gradeLevelName = "";
+  let firstSpace = "";
+  for (b = 0; b < orderFormGradeLevelTemplateArr.length; b++) {
+
+    let ss = SpreadsheetApp.openById(orderFormGradeLevelTemplateArr[b]);
+
+    firstSpace = ss.getName().indexOf(" ");
+    gradeLevelName = ss.getName().substring(0, firstSpace);
+    Logger.log(`--- ${gradeLevelName} grade ---`);
+
+    let sheetsArr = ss.getSheets();
+
+    let notItemNumArr = ["Classroom Materials", "Student Materials"];
+
+    for (let i = 1; i < (sheetsArr.length); i++) {
+      let activeSheet = sheetsArr[i];
+      let data = activeSheet.getDataRange();
+      let values = data.getValues();
+
+      let ofItemNumArr = [];
+      for (j = 6; j < values.length; j++) {
+        if (notItemNumArr.includes(values[j][0])) {
+          void (0);
+        } else {
+          ofItemNumArr.push(values[j][0]);
+        }
+      }
+      dupItemsArr = ofItemNumArr.filter((e, i, a) => a.indexOf(e) !== i);
+      if (dupItemsArr.length > 0) {
+        console.log(`The duplicates in kit "${sheetsArr[i].getSheetName()}" are: ${dupItemsArr}`);
+      }
+    }
+  }
+}
+
+function itemsTeacherOrderFormVersusTotals() {
+
+  Logger.log("*** Checking if item numbers on order sheets match totals sheets and vice versa")
+
+  const orderFormsTemplateFolderId = DriveApp.getFoldersByName("Grade-level Order Sheet templates").next().getId();
+  const orderTotalsSheetsFolderId = DriveApp.getFoldersByName("Grade-level Order Totals").next().getId();
+
+  orderFormGradeLevelTemplateArr = createOrderFormsIdArr(DriveApp.getFolderById(orderFormsTemplateFolderId));
+  orderTotalGradeLevelArr = createTotalsSheetIdArr(DriveApp.getFolderById(orderTotalsSheetsFolderId));
+
+  let firstSpace = "";
+  let gradeLevelName = "";
+  for (b = 0; b < orderFormGradeLevelTemplateArr.length; b++) {
+    let orderFormGradeLevelAllItemNumArr = [];
+    let ss = SpreadsheetApp.openById(orderFormGradeLevelTemplateArr[b]);
+    firstSpace = ss.getName().indexOf(" ");
+    gradeLevelName = ss.getName().substring(0, firstSpace);
+    Logger.log(`--- ${gradeLevelName} grade ---`);
+
+    let sheetsArr = ss.getSheets();
+
+    let notItemNumArr = ["Classroom Materials", "Student Materials"];
+
+    for (let i = 1; i < (sheetsArr.length); i++) {
+      let activeSheet = sheetsArr[i];
+      let data = activeSheet.getDataRange();
+      let values = data.getValues();
+
+      for (j = 6; j < values.length; j++) {
+        if (notItemNumArr.includes(values[j][0])) {
+          void (0);
+        } else {
+          orderFormGradeLevelAllItemNumArr.push(values[j][0]);
+        }
+      }
+    }
+
+    let fileId = orderTotalGradeLevelArr[b];
+    let ssTot = SpreadsheetApp.openById(fileId);
+    let activeSheetTot = ssTot.setActiveSheet(ssTot.getSheets()[0]);
+    dataTot = activeSheetTot.getDataRange();
+    valuesTot = dataTot.getValues();
+
+    let otItemNumberArr = [];
+
+    valuesTot.forEach((val) => {
+      if (val[1] != "") {
+        otItemNumberArr.push(val[1]);
+      }
+    })
+    otItemNumberArr.shift();
+
+    Logger.log("*** Checking for items on teacher order sheet that are not on order total sheet.")
+    for (let k = 0; k < orderFormGradeLevelAllItemNumArr.length; k++) {
+      if (otItemNumberArr.includes(orderFormGradeLevelAllItemNumArr[k])) {
+        void (0);
+      } else {
+        Logger.log("Item on teacher order sheet not on order totals sheet: " + orderFormGradeLevelAllItemNumArr[k]);
+      }
+    }
+
+    Logger.log("*** Checking for items on order total sheet that are not on teacher order sheet.")
+    for (let k = 0; k < otItemNumberArr.length; k++) {
+      if (orderFormGradeLevelAllItemNumArr.includes(otItemNumberArr[k])) {
+        void (0);
+      } else {
+        Logger.log("Item on totals sheet not on teacher order sheet: " + otItemNumberArr[k]);
+      }
+    }
+
+  }
+}
+

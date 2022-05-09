@@ -1,0 +1,133 @@
+// 20220509_1518 create_order_sheets
+
+// ############################################### //
+// ##### manually set the following 3 values ##### //
+// ############################################### //
+
+// The allowed values for gradeLevel are: K, 1, 2, 3, 4, or 5.
+var gradeLevel = "4";  // The teacher order sheets will be created for this grade level.
+
+// The allowed values for numberOfBuildings are: 1 through 25.
+var numberOfBuildings = "4"; // The teacher order sheets will be created for this number of buildings.
+
+// If you change buildingArr then the allowed values for numberOfBuildings must be changed (see above).
+var buildingArr = ["Abbott", "Ackerman", "Aldrich", "Black Elk", "Bryan", "Cather", "Cody", "Cottonwood", "Disney",
+  "Ezra", "Harvey Oaks", "Hitchcock", "Holling Heights", "Montclair", "Morton", "Neihardt", "Norris", "Reagan",
+  "Reeder", "Rockwell", "Rohwer", "Sandoz", "Upchurch", "Wheeler", "Willowdale"]
+
+
+function copyTemplateToAllBuildings() {
+
+  Logger.log(`Start program to create teacher order sheets grade level ${gradeLevel}.`)
+
+  if (!["K", "1", "2", "3", "4", "5"].includes(gradeLevel)) {
+    Logger.log("FATAL ERROR: Invalid gradeLevel: " + gradeLevel);
+    process.exit(0);
+  }
+
+  if (numberOfBuildings >= 1 && numberOfBuildings <= buildingArr.length) {
+    const doNothing = "";
+  } else {
+    Logger.log("FATAL ERROR: Invalid numberOfBuildings: " + numberOfBuildings);
+    process.exit(0);
+  }
+
+  let teacherOrderFormTemplateIdArr = [
+    "Kindergarten Kits Order Sheets",
+    "1st Grade Kits Order Sheets",
+    "2nd Grade Kits Order Sheets",
+    "3rd Grade Kits Order Sheets",
+    "4th Grade Kits Order Sheets",
+    "5th Grade Kits Order Sheets"
+  ];
+
+  let orderFormFolderNameArr = [
+    "Kindergarten",
+    "1st Grade",
+    "2nd Grade",
+    "3rd Grade",
+    "4th Grade",
+    "5th Grade"
+  ];
+
+  let gradeLevelTemp = "";
+  if (gradeLevel == "K") {
+    gradeLevelTemp = 0;
+  } else if (gradeLevel == "1") {
+    gradeLevelTemp = 1;
+  } else if (gradeLevel == "2") {
+    gradeLevelTemp = 2;
+  } else if (gradeLevel == "3") {
+    gradeLevelTemp = 3;
+  } else if (gradeLevel == "4") {
+    gradeLevelTemp = 4;
+  } else if (gradeLevel == "5") {
+    gradeLevelTemp = 5;
+  } else {
+    Logger.log("FATAL ERROR: Fall thru setting gradeLevelTemp. Invalid gradeLevel: " + gradeLevel);
+    process.exit(0);
+  }
+
+  const orderTotalsSheetsFolderId = DriveApp.getFoldersByName(orderFormFolderNameArr[gradeLevelTemp]).next().getId();
+
+  let totalsSheetsFolderId = DriveApp.getFolderById(orderTotalsSheetsFolderId);
+  const files = totalsSheetsFolderId.getFiles();
+  let ctr = 0;
+  while (files.hasNext()) {
+    const file = files.next();
+    ctr = ctr + 1;
+  }
+  if (ctr > 0) {
+    Logger.log("FATAL ERROR: folder " + orderFormFolderNameArr[gradeLevelTemp] + " contains teacher order sheet files.");
+    process.exit(0);
+  }
+
+  let orderFormFolderIdArr = [];
+
+  orderFormFolderNameArr.forEach((val) => {
+    orderFormFolderIdArr.push(DriveApp.getFoldersByName(val).next().getId());
+  })
+
+  const folderId = orderFormFolderIdArr[gradeLevelTemp];
+
+  const templateId = getFileIdForFileName(teacherOrderFormTemplateIdArr[gradeLevelTemp]);
+
+  const ss = SpreadsheetApp.openById(templateId);
+
+  for (let i = 0; i < numberOfBuildings; i++) {
+    const building = buildingArr[i];
+
+    Logger.log("Creating teacher order sheet for: " + building);
+
+    // Copy template to create a new spreadsheet (will be in MyDrive)
+    ss.copy(building);
+
+    // Put building name into second sheet of newly created spreadsheet
+    const fileId = getFileIdForFileName(building);
+    const ssNew = SpreadsheetApp.openById(fileId);
+    const activeSheet = ssNew.setActiveSheet(ssNew.getSheets()[1]);
+    const targetCell = activeSheet.setActiveSelection("C2");
+    targetCell.setValue(building);
+
+    // Move this newly created spreadsheet to the grade-level folder
+    const file = DriveApp.getFileById(fileId);
+    DriveApp.getFolderById(folderId).addFile(file);
+
+  } // end for loop
+
+} // end function
+
+function getFileIdForFileName(building) {
+  //Get the file id of the building order form that was just created
+  var FileIterator = DriveApp.getFilesByName(building);
+  var fileId;
+  while (FileIterator.hasNext()) {
+    var file = FileIterator.next();
+    if (file.getName() == building) {
+      var Sheet = SpreadsheetApp.open(file);
+      fileId = file.getId();
+      break;
+    }
+  }
+  return fileId;
+}

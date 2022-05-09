@@ -1,0 +1,207 @@
+// 20220509_1544 update_order_total_sheet
+
+// #################################### //
+// ##### manually set grade level ##### //
+// #################################### //
+// gradeLevel must be: K, 1, 2, 3, 4, 5 //
+var gradeLevel = "4";  // The order totals sheet for this grade level will be updated.
+
+function run_update_totals_for_a_grade() {
+  // function updateTotalRequested() {
+  Logger.log(`Start program to update Order Totals Google sheet for grade level ${gradeLevel}.`)
+
+  let doNothing = "";
+  validGradeLevelArr = ["K", "1", "2", "3", "4", "5"];
+  if (validGradeLevelArr.includes(gradeLevel)) {
+    doNothing = "";
+  } else {
+    try {
+      throw "exit";
+    } catch (e) {
+      Logger.log("EXITING FATAL ERROR: Invalid gradeLevel: " + gradeLevel);
+    }
+  }
+
+  const orderTotalsFolderId = DriveApp.getFoldersByName("Grade-level Order Totals").next().getId();
+  let gradeLevelTotalsSheetIdArr = createTotalsSheetIdArr(DriveApp.getFolderById(orderTotalsFolderId));
+
+  let gradeLevelTemp = "";
+  if (gradeLevel == "K") {
+    gradeLevelTemp = 0;
+  } else if (gradeLevel == "5") {
+    gradeLevelTemp = 1;
+  } else if (gradeLevel == "4") {
+    gradeLevelTemp = 2;
+  } else if (gradeLevel == "3") {
+    gradeLevelTemp = 3;
+  } else if (gradeLevel == "2") {
+    gradeLevelTemp = 4;
+  } else if (gradeLevel == "1") {
+    gradeLevelTemp = 5;
+  } else {
+    Logger.log("FATAL ERROR: Fall thru setting gradeLevelTemp. Invalid gradeLevel: " + gradeLevel);
+    process.exit(0);
+  }
+
+  // fileId is the fileId for the grade-level totals sheet that is being updated in this
+  // run of the program
+  let fileId = gradeLevelTotalsSheetIdArr[gradeLevelTemp];
+
+  const ss = SpreadsheetApp.openById(fileId);
+  const activeSheet = ss.setActiveSheet(ss.getSheets()[0]);
+  data = activeSheet.getDataRange();
+  values = data.getValues();
+
+  let otItemNumberArr = [];
+  values.forEach((val) => {
+    if (val[1] != "") {
+      otItemNumberArr.push(val[1]);
+    }
+  })
+
+  for (i = 1; i < otItemNumberArr.length; i++) {
+    if (activeSheet.getRange("E" + (i + 1)).getValue() != "") {
+      activeSheet.getRange("E" + (i + 1)).setValue("");
+    }
+  }
+
+  let returnedOrderFormsItemsQtyNeededArr = getOrderFormsTotalQtyNeeded(gradeLevel);
+  Logger.log(`Updating Order Totals Google sheet for grade level ${gradeLevel}.`)
+
+  let orderFormsItemNumberArr = returnedOrderFormsItemsQtyNeededArr[0];
+  let orderFormsTotalQtyNeededArr = returnedOrderFormsItemsQtyNeededArr[1];
+
+  for (let i = 0; i < orderFormsItemNumberArr.length; i++) {
+    orderedItemFoundOnTotalsForm = false;
+
+    for (let j = 0; j < otItemNumberArr.length; j++) {
+      if (orderFormsItemNumberArr[i] == otItemNumberArr[j]) {
+
+        currentTotalRequested = activeSheet.getRange("E" + (j + 1)).getValue();
+        activeSheet.getRange("E" + (j + 1)).setValue(orderFormsTotalQtyNeededArr[i] + currentTotalRequested);
+        orderedItemFoundOnTotalsForm = true;
+        break;
+      }
+    } // inner for loop
+
+    if (orderedItemFoundOnTotalsForm == false) {
+      Logger.log("Ordered item not found on Order Totals form " + orderFormsItemNumberArr[i]);
+    }
+
+  } //outer for loop
+
+} // end of function
+
+function getFileIdForFileName(building) {
+  //Get the file id of the building order form that was just created
+  var FileIterator = DriveApp.getFilesByName(building);
+  var fileId;
+  while (FileIterator.hasNext()) {
+    var file = FileIterator.next();
+    if (file.getName() == building) {
+      var Sheet = SpreadsheetApp.open(file);
+      fileId = file.getId();
+      break;
+    }
+  } //end while
+  return fileId;
+}
+
+function createTotalsSheetIdArr(totalsSheetsFolderId) {
+  const files = totalsSheetsFolderId.getFiles();
+  let totalsSheetIdArr = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    totalsSheetIdArr.push(file.getId());
+  }
+
+  let totalsSheetNameArr = [];
+  totalsSheetIdArr.forEach((val) => {
+    let activeFile = DriveApp.getFileById(val);
+    totalsSheetNameArr.push(activeFile.getName());
+  })
+
+  let totalsSheetSortedByNameIdArr = [];
+  totalsSheetNameArr.sort().reverse().forEach((val) => {
+    totalsSheetSortedByNameIdArr.push(getFileIdForFileName(val));
+  })
+  return (totalsSheetSortedByNameIdArr);
+
+}
+
+function createBuildingIdArr(gradeLevelFolderId) {
+  const files = gradeLevelFolderId.getFiles();
+  let buildingIdArr = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    buildingIdArr.push(file.getId());
+  }
+
+  return (buildingIdArr);
+}
+
+function createGradeLevelTeacherFolderIdArr() {
+  let orderFormFolderNameArr = [
+    "Kindergarten",
+    "1st Grade",
+    "2nd Grade",
+    "3rd Grade",
+    "4th Grade",
+    "5th Grade"
+  ];
+
+  let orderFormFolderIdArr = [];
+
+  orderFormFolderNameArr.forEach((val) => {
+    orderFormFolderIdArr.push(folderId = DriveApp.getFoldersByName(val).next().getId());
+  })
+  return (orderFormFolderIdArr);
+
+  // Logger.log("orderFormFolderIdArr: " + orderFormFolderIdArr);
+}
+
+function getOrderFormsTotalQtyNeeded(gradeLevel) {
+
+  let gradeLevelTemp2 = gradeLevel;
+  if (gradeLevel == "K") {
+    gradeLevelTemp2 = 0;
+  }
+
+  let gradeLevelTeacherFolderIdArr = createGradeLevelTeacherFolderIdArr();
+  let folderIdForGradeLevel = gradeLevelTeacherFolderIdArr[gradeLevelTemp2];
+  var buildingIdArr = createBuildingIdArr(DriveApp.getFolderById(folderIdForGradeLevel));
+
+  let orderFormsItemsQuantityNeededArr = [];
+  let orderFormsItemNumberArr = [];
+  let orderFormsQuantityNeededArr = [];
+
+  for (let b = 0; b < (buildingIdArr.length); b++) {
+
+    let ss = SpreadsheetApp.openById(buildingIdArr[b]);
+    Logger.log("*********************************************************************");
+    Logger.log("Getting Quantity Needed for building: " + ss.getName());
+    Logger.log("*********************************************************************");
+    let sheets = ss.getSheets();
+
+    for (let i = 1; i < (sheets.length); i++) {
+      let activeSheet = sheets[i];
+      data = activeSheet.getDataRange();
+      values = data.getValues();
+      Logger.log("values: " + values);
+      for (j = 6; j < values.length; j++) {
+        if (values[j][4] != "") {
+          orderFormsItemNumberArr.push(values[j][0]);
+          orderFormsQuantityNeededArr.push(values[j][4]);
+        }
+      }
+    }
+
+  }
+
+  orderFormsItemsQuantityNeededArr.push(orderFormsItemNumberArr);
+  orderFormsItemsQuantityNeededArr.push(orderFormsQuantityNeededArr);
+  // Logger.log("orderFormsItemNumberArr: " + orderFormsItemNumberArr);
+  // Logger.log("orderFormsItemsQuantityNeededArr: " + orderFormsItemsQuantityNeededArr);
+
+  return (orderFormsItemsQuantityNeededArr);
+} // end of function
